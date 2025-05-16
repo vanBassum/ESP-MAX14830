@@ -5,7 +5,6 @@ namespace esphome
 {
     namespace max14830
     {
-
         void MAX14830GPIOPin::setup()
         {
             pin_mode(flags_);

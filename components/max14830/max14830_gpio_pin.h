@@ -10,6 +10,7 @@ namespace esphome
         class MAX14830;
         class MAX14830GPIOPin : public GPIOPin
         {
+            constexpr static const char *const TAG = "max14830_gpio_pin";
         public:
 
             void setup() override;

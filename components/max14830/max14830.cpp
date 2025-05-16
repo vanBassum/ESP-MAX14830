@@ -69,9 +69,9 @@ namespace esphome
         bool MAX14830::digital_read(uint8_t pin)
         {
             uint32_t port = pin / 4;
-            uint8_t mask = (1 << (pin % 4));
+            uint8_t bit = pin % 4;
             uint8_t reg = max310x_port_read(port, MAX310X_GPIODATA_REG);
-            return reg & mask > 0;
+            return ((reg >> 4) & (1 << bit)) != 0;
         }
 
         void MAX14830::digital_write(uint8_t pin, bool value)
@@ -140,7 +140,7 @@ namespace esphome
 
         bool MAX14830::Detect()
         {
-            
+
             regmap_write(MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_ENBL);
             uint8_t value = max310x_port_read(0x00, MAX310X_REVID_EXTREG);
             regmap_write(MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
@@ -265,11 +265,11 @@ namespace esphome
             RETURN_ON_FALSE(max310x_port_update(port, MAX310X_MODE2_REG, MAX310X_MODE2_RXEMPTINV_BIT, MAX310X_MODE2_RXEMPTINV_BIT));
 
             // Clear IRQ status registers
-           max310x_port_read(port, MAX310X_IRQSTS_REG);
-           max310x_port_read(port, MAX310X_LSR_IRQSTS_REG);
-           max310x_port_read(port, MAX310X_SPCHR_IRQSTS_REG);
-           max310x_port_read(port, MAX310X_STS_IRQSTS_REG);
-           max310x_port_read(port, MAX310X_GLOBALIRQ_REG);
+            max310x_port_read(port, MAX310X_IRQSTS_REG);
+            max310x_port_read(port, MAX310X_LSR_IRQSTS_REG);
+            max310x_port_read(port, MAX310X_SPCHR_IRQSTS_REG);
+            max310x_port_read(port, MAX310X_STS_IRQSTS_REG);
+            max310x_port_read(port, MAX310X_GLOBALIRQ_REG);
 
             // Route GlobalIRQ to IRQPIN
             RETURN_ON_FALSE(max310x_port_update(port, MAX310X_MODE1_REG, MAX310X_MODE1_IRQSEL_BIT, MAX310X_MODE1_IRQSEL_BIT));
