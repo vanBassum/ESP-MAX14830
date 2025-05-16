@@ -27,6 +27,10 @@ namespace esphome
             void digital_write(uint8_t pin, bool value);
             void pin_mode(uint8_t pin, gpio::Flags flags);
 
+            void UartConfigure(uint8_t port, uint32_t baud, UARTParityOptions parity, uint8_t stop_bits, uint8_t data_bits, FlowControl flow_control);
+            int UartAvailable(uint8_t port);
+            int UartWrite(uint8_t port, const uint8_t *data, int size);
+            int UartRead(uint8_t port, uint8_t *data, int size);
 
         private:
             bool Detect();
@@ -45,7 +49,6 @@ namespace esphome
 
             uint8_t gpioConfBuffer[4] = {};
             uint16_t gpioDataBuffer = 0;
-
         };
 
     } // namespace max14830

@@ -134,6 +134,156 @@ namespace esphome
             }
         }
 
+        void MAX14830::UartConfigure(uint8_t port, uint32_t baud, UARTParityOptions parity, uint8_t stop_bits, uint8_t data_bits, FlowControl flow_control)
+        {
+            uint8_t flowCtrlRegVal = 0;
+
+            // TODO: Implement other flow control settings.
+            switch (flow_control)
+            {
+            case FlowControl::UART_CFG_FLOW_CTRL_NONE:
+                max310x_port_update(port, MAX310X_MODE1_REG, MAX310X_MODE1_TXDIS_BIT, 0);
+                max310x_port_update(port, MAX310X_MODE1_REG, (MAX310X_MODE1_TRNSCVCTRL_BIT | MAX310X_MODE1_IRQSEL_BIT), (0 | MAX310X_MODE1_IRQSEL_BIT));
+                max310x_port_write(port, MAX310X_HDPIXDELAY_REG, 0);
+                break;
+
+            case FlowControl::UART_CFG_FLOW_CTRL_RS485:
+                max310x_port_update(port, MAX310X_MODE1_REG, (MAX310X_MODE1_TRNSCVCTRL_BIT | MAX310X_MODE1_IRQSEL_BIT), (MAX310X_MODE1_TRNSCVCTRL_BIT | MAX310X_MODE1_IRQSEL_BIT));
+                max310x_port_write(port, MAX310X_HDPIXDELAY_REG, 0x11);
+                break;
+
+            case FlowControl::UART_CFG_FLOW_CTRL_RTS_CTS:
+                max310x_port_update(port, MAX310X_MODE1_REG, MAX310X_MODE1_TXDIS_BIT, MAX310X_MODE1_TXDIS_BIT);
+                max310x_port_update(port, MAX310X_MODE1_REG, (MAX310X_MODE1_TRNSCVCTRL_BIT | MAX310X_MODE1_IRQSEL_BIT), (0 | MAX310X_MODE1_IRQSEL_BIT));
+                max310x_port_write(port, MAX310X_HDPIXDELAY_REG, 0);
+                flowCtrlRegVal |= MAX310X_FLOWCTRL_AUTOCTS_BIT;
+                break;
+            default:
+                ESP_LOGE(TAG, "Flow control %d not supported", flow_control);
+                return false;
+            }
+
+            // TODO: Implement other parity settings.
+            switch (config->parity)
+            {
+            case UartConfigParity::UART_CFG_PARITY_NONE:
+                break;
+
+            default:
+                ESP_LOGE(TAG, "Parity %d not supported", config->parity);
+                return false;
+            }
+
+            // TODO: Implement other databits settings.
+            switch (config->dataBits)
+            {
+            case UartConfigDataBits::UART_CFG_DATA_BITS_8:
+                break;
+
+            default:
+                ESP_LOGE(TAG, "Data bits %d not supported", config->dataBits);
+                return false;
+            }
+
+            // TODO: Implement other stopbits settings.
+            switch (config->stopBits)
+            {
+            case UartConfigStopBits::UART_CFG_STOP_BITS_1:
+                break;
+
+            default:
+                ESP_LOGE(TAG, "Stop bits %d not supported", config->stopBits);
+                return false;
+            }
+
+            max310x_set_baud(port, config->baudrate, NULL);
+            max310x_port_write(port, MAX310X_LCR_REG, MAX310X_LCR_LENGTH0_BIT | MAX310X_LCR_LENGTH1_BIT); // 8 bit - no parity - 1 stopbit
+            max310x_port_write(port, MAX310X_FLOWCTRL_REG, flowCtrlRegVal);
+
+            // Reset FIFOs
+            max310x_port_update(port, MAX310X_MODE2_REG, MAX310X_MODE2_FIFORST_BIT, MAX310X_MODE2_FIFORST_BIT);
+            max310x_port_update(port, MAX310X_MODE2_REG, MAX310X_MODE2_FIFORST_BIT, 0);
+        }
+
+        int MAX14830::UartAvailable(uint8_t port)
+        {
+            return max310x_port_read(port, MAX310X_RXFIFOLVL_REG);
+        }
+
+        int MAX14830::UartWrite(uint8_t port, const uint8_t *data, int size)
+        {
+            size_t bytesWrittenTotal = 0;
+
+            // Loop until all data is written
+            while (bytesWrittenTotal < size)
+            {
+                // Calculate the number of bytes to write
+                size_t bytesToWrite = size - bytesWrittenTotal;
+
+                // Ensure it fits int the FIFO
+                uint8_t fifolvl = max310x_port_read(port, MAX310X_TXFIFOLVL_REG);
+                if (bytesToWrite > MAX14830_FIFO_MAX - fifolvl)
+                    bytesToWrite = MAX14830_FIFO_MAX - fifolvl;
+
+                // If no space in the FIFO, wait for the data to be clocked out.
+                if (bytesToWrite == 0)
+                {
+                    ESP_LOGE(TAG, "No space in FIFO of port %d, %d out of %d bytes written", port, bytesWrittenTotal, size);
+                    return bytesWrittenTotal;
+                }
+
+                // Perform the write operation
+                if (!Max14830_WriteBufferPolled(((uint32_t)port << 5), data, bytesToWrite))
+                {
+                    ESP_LOGE(TAG, "Failed to write data to port %d, %d out of %d bytes written", port, bytesWrittenTotal, size);
+                    return bytesWrittenTotal;
+
+                }
+
+                // Update total bytes written and shift the data pointer
+                bytesWrittenTotal += bytesToWrite;
+                data += bytesToWrite;
+            }
+            return bytesWrittenTotal;
+        }
+
+        int MAX14830::UartRead(uint8_t port, uint8_t *data, int size)
+        {
+            size_t bytesReadTotal = 0;
+
+            // Loop until all data is read
+            while (bytesReadTotal < size)
+            {
+                // Calculate the number of bytes to read
+                size_t bytesToRead = size - bytesReadTotal;
+
+                // Ensure data is available in the FIFO
+                uint8_t fifolvl = max310x_port_read(port, MAX310X_RXFIFOLVL_REG);
+                if (bytesToRead > fifolvl)
+                    bytesToRead = fifolvl;
+
+                // If no data in the FIFO, wait for the data to be received.
+                if (bytesToRead == 0)
+                {
+                    ESP_LOGE(TAG, "No data in FIFO of port %d, %d out of %d bytes read", port, bytesReadTotal, size);
+                    return bytesReadTotal;
+                }
+
+                // Perform the read operation
+                if (!Max14830_ReadBufferPolled(((uint32_t)port << 5), nullptr, data, bytesToRead))
+                {
+                    ESP_LOGE(TAG, "Failed to read data from port %d, %d out of %d bytes read", port, bytesReadTotal, size);
+                    return bytesReadTotal;
+                }
+
+                // Update total bytes read and shift the data pointer
+                bytesReadTotal += bytesToRead;
+                data += bytesToRead;
+            }
+
+            return bytesReadTotal;
+        }
+
         // --------------------------------------------------------
         // ------------------ MAX14830 functions ------------------
         // --------------------------------------------------------
