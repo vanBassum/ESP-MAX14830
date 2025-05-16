@@ -16,7 +16,8 @@ from esphome.const import (
 max14830_ns = cg.esphome_ns.namespace("max14830")
 MAX14830 = max14830_ns.class_("MAX14830", cg.Component, spi.SPIDevice)
 MAX14830GPIOPin = max14830_ns.class_("MAX14830GPIOPin", cg.GPIOPin)
-MAX14830UART = max14830_ns.class_("MAX14830UART", cg.Component)
+MAX14830UART = max14830_ns.class_("MAX14830UART", cg.Component, uart.UARTComponent)
+
 
 # === CONSTANTS ===
 CONF_MAX14830 = "max14830"

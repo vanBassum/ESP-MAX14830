@@ -134,7 +134,7 @@ namespace esphome
             }
         }
 
-        void MAX14830::UartConfigure(uint8_t port, uint32_t baud, UARTParityOptions parity, uint8_t stop_bits, uint8_t data_bits, FlowControl flow_control)
+        void MAX14830::UartConfigure(uint8_t port, uint32_t baud, esphome::uart::UARTParityOptions parity, uint8_t stop_bits, uint8_t data_bits, FlowControl flow_control)
         {
             uint8_t flowCtrlRegVal = 0;
 
@@ -160,43 +160,15 @@ namespace esphome
                 break;
             default:
                 ESP_LOGE(TAG, "Flow control %d not supported", flow_control);
-                return false;
+                return;
             }
 
             // TODO: Implement other parity settings.
-            switch (config->parity)
-            {
-            case UartConfigParity::UART_CFG_PARITY_NONE:
-                break;
-
-            default:
-                ESP_LOGE(TAG, "Parity %d not supported", config->parity);
-                return false;
-            }
-
             // TODO: Implement other databits settings.
-            switch (config->dataBits)
-            {
-            case UartConfigDataBits::UART_CFG_DATA_BITS_8:
-                break;
-
-            default:
-                ESP_LOGE(TAG, "Data bits %d not supported", config->dataBits);
-                return false;
-            }
-
             // TODO: Implement other stopbits settings.
-            switch (config->stopBits)
-            {
-            case UartConfigStopBits::UART_CFG_STOP_BITS_1:
-                break;
 
-            default:
-                ESP_LOGE(TAG, "Stop bits %d not supported", config->stopBits);
-                return false;
-            }
 
-            max310x_set_baud(port, config->baudrate, NULL);
+            max310x_set_baud(port, baud, NULL);
             max310x_port_write(port, MAX310X_LCR_REG, MAX310X_LCR_LENGTH0_BIT | MAX310X_LCR_LENGTH1_BIT); // 8 bit - no parity - 1 stopbit
             max310x_port_write(port, MAX310X_FLOWCTRL_REG, flowCtrlRegVal);
 
@@ -283,6 +255,58 @@ namespace esphome
 
             return bytesReadTotal;
         }
+
+        void MAX14830::max310x_set_baud(uint8_t port, uint32_t baud, uint32_t *actualBaud)
+        {
+            uint8_t mode = 0;
+            uint32_t fref = max310x_get_ref_clk();
+            uint32_t clk = fref;
+            uint32_t div = clk / baud;
+
+            // Check for minimal value for divider
+            if (div < 16)
+                div = 16;
+            //
+            if ((clk % baud) && ((div / 16) < 0x8000))
+            {
+                /* Mode x2 */
+                mode = MAX310X_BRGCFG_2XMODE_BIT;
+                clk = fref * 2;
+                div = clk / baud;
+                if ((clk % baud) && ((div / 16) < 0x8000))
+                {
+                    /* Mode x4 */
+                    mode = MAX310X_BRGCFG_4XMODE_BIT;
+                    clk = fref * 4;
+                    div = clk / baud;
+                }
+            }
+
+            max310x_port_write(port, MAX310X_BRGDIVMSB_REG, (div / 16) >> 8);
+            max310x_port_write(port, MAX310X_BRGDIVLSB_REG, div / 16);
+            max310x_port_write(port, MAX310X_BRGCFG_REG, (div % 16) | mode);
+            if (actualBaud != NULL)
+                *actualBaud = clk / div; // actual baudrate, this will never be exactly the value requested..
+        }
+
+        uint32_t MAX14830::max310x_get_ref_clk()
+        {
+            uint64_t clk = MAX14830_CLK; // we only need 64bits for calculation..
+            uint8_t value =  max310x_port_read(0x00, MAX310X_PLLCFG_REG);
+            uint32_t clkDiv = value & MAX310X_PLLCFG_PREDIV_MASK;
+            uint32_t mul = (value >> 6) & 0x3;
+            if (mul == 0)
+            {
+                mul = 6;
+            }
+            else
+            {
+                mul = mul * 48;
+            }
+            return (clk * mul) / clkDiv; // math is turned to prevent math errors (trunc).
+
+        }
+
 
         // --------------------------------------------------------
         // ------------------ MAX14830 functions ------------------

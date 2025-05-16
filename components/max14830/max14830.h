@@ -28,7 +28,7 @@ namespace esphome
             void digital_write(uint8_t pin, bool value);
             void pin_mode(uint8_t pin, gpio::Flags flags);
 
-            void UartConfigure(uint8_t port, uint32_t baud, UARTParityOptions parity, uint8_t stop_bits, uint8_t data_bits, FlowControl flow_control);
+            void UartConfigure(uint8_t port, uint32_t baud, esphome::uart::UARTParityOptions parity, uint8_t stop_bits, uint8_t data_bits, FlowControl flow_control);
             int UartAvailable(uint8_t port);
             int UartWrite(uint8_t port, const uint8_t *data, int size);
             int UartRead(uint8_t port, uint8_t *data, int size);
@@ -46,7 +46,9 @@ namespace esphome
             uint8_t max310x_update_best_err(uint64_t f, int64_t *besterr);
             bool Max14830_WriteBufferPolled(uint8_t cmd, const uint8_t *cmdData, uint8_t count);
             bool Max14830_ReadBufferPolled(uint8_t cmd, uint8_t *cmdData, uint8_t *replyData, uint8_t count);
-
+            void max310x_set_baud(uint8_t port, uint32_t baud, uint32_t *actualBaud);
+            uint32_t max310x_get_ref_clk();
+        
 
             uint8_t gpioConfBuffer[4] = {};
             uint16_t gpioDataBuffer = 0;

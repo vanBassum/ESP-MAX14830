@@ -19,7 +19,9 @@ namespace esphome
 
         class MAX14830UART : public Component, public uart::UARTComponent
         {
+            constexpr static const char* TAG = "max14830_uart";
         public:
+            MAX14830UART() = default;
             void setup() override;
             void dump_config() override;
 
@@ -39,7 +41,7 @@ namespace esphome
 
         protected:
             void UpdateConfig();
-
+            void check_logger_conflict() override;
         private:
             MAX14830 *parent_{nullptr};
             int8_t port_{-1}; // Use signed type to allow -1 as invalid
