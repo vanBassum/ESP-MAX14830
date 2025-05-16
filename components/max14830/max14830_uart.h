@@ -1,24 +1,28 @@
 #pragma once
+
 #include "esphome/components/uart/uart_component.h"
 
 namespace esphome
 {
     namespace max14830
     {
+
         class MAX14830;
 
         enum FlowControl
         {
-            UART_CFG_FLOW_CTRL_NONE     = 0x00,
-            UART_CFG_FLOW_CTRL_RTS_CTS  = 0x01,
-            UART_CFG_FLOW_CTRL_DTR_DSR  = 0x02,
-            UART_CFG_FLOW_CTRL_RS485    = 0x03,
+            UART_CFG_FLOW_CTRL_NONE = 0x00,
+            UART_CFG_FLOW_CTRL_RTS_CTS = 0x01,
+            UART_CFG_FLOW_CTRL_DTR_DSR = 0x02,
+            UART_CFG_FLOW_CTRL_RS485 = 0x03,
         };
 
-        class MAX14830UART : public uart::UARTComponent
+        class MAX14830UART : public Component, public uart::UARTComponent
         {
-
         public:
+            void setup() override;
+            void dump_config() override;
+
             void write_array(const uint8_t *data, size_t len) override;
             bool peek_byte(uint8_t *data) override;
             bool read_array(uint8_t *data, size_t len) override;
@@ -34,18 +38,16 @@ namespace esphome
             void set_flow_control(FlowControl flow_control);
 
         protected:
-            ///void check_logger_conflict() = 0;
+            void UpdateConfig();
 
         private:
             MAX14830 *parent_{nullptr};
-            uint8_t port_{-1};
+            int8_t port_{-1}; // Use signed type to allow -1 as invalid
             uint32_t baud_rate_{9600};
             uint8_t stop_bits_{1};
             uint8_t data_bits_{8};
-            esphome::uart::UARTParityOptions parity_{esphome::uart::UARTParityOptions::UART_CONFIG_PARITY_NONE};
+            esphome::uart::UARTParityOptions parity_{esphome::uart::UART_CONFIG_PARITY_NONE};
             FlowControl flow_control_{UART_CFG_FLOW_CTRL_NONE};
-
-            void UpdateConfig();
         };
 
     } // namespace max14830
