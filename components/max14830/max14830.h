@@ -32,6 +32,7 @@ namespace esphome
             int UartAvailable(uint8_t port);
             int UartWrite(uint8_t port, const uint8_t *data, int size);
             int UartRead(uint8_t port, uint8_t *data, int size);
+            
 
         private:
             bool Detect();

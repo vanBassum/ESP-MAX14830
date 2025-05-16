@@ -256,6 +256,7 @@ namespace esphome
             return bytesReadTotal;
         }
 
+
         void MAX14830::max310x_set_baud(uint8_t port, uint32_t baud, uint32_t *actualBaud)
         {
             uint8_t mode = 0;
@@ -291,20 +292,24 @@ namespace esphome
 
         uint32_t MAX14830::max310x_get_ref_clk()
         {
-            uint64_t clk = MAX14830_CLK; // we only need 64bits for calculation..
-            uint8_t value =  max310x_port_read(0x00, MAX310X_PLLCFG_REG);
+            uint64_t clk = MAX14830_CLK;  // 14.7456 MHz, or whatever
+            uint8_t value = max310x_port_read(0x00, MAX310X_PLLCFG_REG);
+
             uint32_t clkDiv = value & MAX310X_PLLCFG_PREDIV_MASK;
-            uint32_t mul = (value >> 6) & 0x3;
-            if (mul == 0)
-            {
-                mul = 6;
+
+            if (clkDiv == 0) {
+                ESP_LOGE("max14830", "PLLCFG: clkDiv is 0! Invalid config.");
+                return 0;
             }
-            else
-            {
+
+            uint32_t mul = (value >> 6) & 0x3;
+            if (mul == 0) {
+                mul = 6;
+            } else {
                 mul = mul * 48;
             }
-            return (clk * mul) / clkDiv; // math is turned to prevent math errors (trunc).
 
+            return (clk * mul) / clkDiv;
         }
 
 

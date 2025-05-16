@@ -39,6 +39,10 @@ namespace esphome
             void set_parity(esphome::uart::UARTParityOptions parity);
             void set_flow_control(FlowControl flow_control);
 
+            float get_setup_priority() const {
+  return setup_priority::DATA;  // later
+}
+
         protected:
             void UpdateConfig();
             void check_logger_conflict() override;
