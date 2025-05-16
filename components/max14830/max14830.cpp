@@ -19,7 +19,7 @@ namespace esphome
         {
             ESP_LOGCONFIG(TAG, "dump_config called!");
         }
-        
+
         float MAX14830::get_setup_priority() const
         {
             return setup_priority::IO;
@@ -27,7 +27,7 @@ namespace esphome
 
         void MAX14830::setup()
         {
-            ESP_LOGI(TAG, "Setting up MAX14830...");
+            ESP_LOGCONFIG(TAG, "Setting up MAX14830...");
 
             this->spi_setup();
 
@@ -348,7 +348,11 @@ namespace esphome
         bool MAX14830::Max14830_WriteBufferPolled(uint8_t cmd, const uint8_t *cmdData, uint8_t count)
         {
             this->enable();
-            this->write_cmd_addr_data(1, cmd, 0, 0, cmdData, count, 1); // Send command byte with write bit
+            this->write_byte(0x80 | cmd);
+            for (uint8_t i = 0; i < count; i++)
+            {
+                this->write_byte(cmdData[i]);
+            }
             this->disable();
             return true;
         }
@@ -357,11 +361,10 @@ namespace esphome
         {
             this->enable();
             this->write_byte(cmd);
-
-            if (cmdData != nullptr)
-                memcpy(replyData, cmdData, count);
-
-            this->transfer_array(replyData, count);
+            for (uint8_t i = 0; i < count; i++)
+            {
+                replyData[i] = this->transfer_byte(0xFF); // Dummy TX, read RX
+            }
             this->disable();
             return true;
         }
