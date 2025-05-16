@@ -70,16 +70,7 @@ namespace esphome
         {
             uint32_t port = pin / 4;
             uint8_t mask = (1 << (pin % 4));
-
-            ESP_LOGD(TAG, "Reading digital value from pin %u (%01x, %01x)", pin, port, mask);
-
-            uint8_t reg;
-            if (!max310x_port_read(port, MAX310X_GPIODATA_REG, &reg))
-            {
-                ESP_LOGE(TAG, "Failed to read GPIO data");
-                return false;
-            }
-
+            uint8_t reg = max310x_port_read(port, MAX310X_GPIODATA_REG);
             return reg & mask > 0;
         }
 
@@ -93,8 +84,6 @@ namespace esphome
                 gpioDataBuffer &= ~(1 << pin);
 
             uint8_t reg = gpioDataBuffer >> (4 * port);
-
-            ESP_LOGD(TAG, "Writing digital value %u to pin %u (%01x, %01x)", value, pin, port, reg);
 
             if (!max310x_port_write(port, MAX310X_GPIODATA_REG, reg))
             {
@@ -151,9 +140,9 @@ namespace esphome
 
         bool MAX14830::Detect()
         {
-            uint8_t value;
+            
             regmap_write(MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_ENBL);
-            max310x_port_read(0x00, MAX310X_REVID_EXTREG, &value);
+            uint8_t value = max310x_port_read(0x00, MAX310X_REVID_EXTREG);
             regmap_write(MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
 
             if (((value & MAX310x_REV_MASK) != MAX14830_REV_ID))
@@ -249,7 +238,7 @@ namespace esphome
             uint8_t escape = 0;
             while (escape < 100)
             {
-                regmap_read(MAX310X_STS_IRQSTS_REG, &val);
+                val = regmap_read(MAX310X_STS_IRQSTS_REG);
                 if (!(val & MAX310X_STS_CLKREADY_BIT))
                 {
                     vTaskDelay(pdMS_TO_TICKS(20));
@@ -272,17 +261,15 @@ namespace esphome
 
         bool MAX14830::portInit(uint8_t port)
         {
-            uint8_t dummy;
-
             // Configure MODE2 register
             RETURN_ON_FALSE(max310x_port_update(port, MAX310X_MODE2_REG, MAX310X_MODE2_RXEMPTINV_BIT, MAX310X_MODE2_RXEMPTINV_BIT));
 
             // Clear IRQ status registers
-            RETURN_ON_FALSE(max310x_port_read(port, MAX310X_IRQSTS_REG, &dummy));
-            RETURN_ON_FALSE(max310x_port_read(port, MAX310X_LSR_IRQSTS_REG, &dummy));
-            RETURN_ON_FALSE(max310x_port_read(port, MAX310X_SPCHR_IRQSTS_REG, &dummy));
-            RETURN_ON_FALSE(max310x_port_read(port, MAX310X_STS_IRQSTS_REG, &dummy));
-            RETURN_ON_FALSE(max310x_port_read(port, MAX310X_GLOBALIRQ_REG, &dummy));
+           max310x_port_read(port, MAX310X_IRQSTS_REG);
+           max310x_port_read(port, MAX310X_LSR_IRQSTS_REG);
+           max310x_port_read(port, MAX310X_SPCHR_IRQSTS_REG);
+           max310x_port_read(port, MAX310X_STS_IRQSTS_REG);
+           max310x_port_read(port, MAX310X_GLOBALIRQ_REG);
 
             // Route GlobalIRQ to IRQPIN
             RETURN_ON_FALSE(max310x_port_update(port, MAX310X_MODE1_REG, MAX310X_MODE1_IRQSEL_BIT, MAX310X_MODE1_IRQSEL_BIT));
@@ -305,17 +292,17 @@ namespace esphome
             return Max14830_WriteBufferPolled(cmd, &value, 1);
         }
 
-        uint8_t MAX14830::regmap_read(uint8_t cmd, uint8_t *value)
+        uint8_t MAX14830::regmap_read(uint8_t cmd)
         {
-            uint8_t cmdData[1];
-            Max14830_ReadBufferPolled(cmd, cmdData, value, 1);
-            return cmdData[0];
+            uint8_t replyData[1];
+            Max14830_ReadBufferPolled(cmd, nullptr, replyData, 1);
+            return replyData[0];
         }
 
-        bool MAX14830::max310x_port_read(uint8_t port, uint8_t cmd, uint8_t *value)
+        uint8_t MAX14830::max310x_port_read(uint8_t port, uint8_t cmd)
         {
             cmd = (port << 5) | cmd;
-            return regmap_read(cmd, value);
+            return regmap_read(cmd);
         }
 
         bool MAX14830::max310x_port_write(uint8_t port, uint8_t cmd, uint8_t value)
@@ -326,8 +313,7 @@ namespace esphome
 
         bool MAX14830::max310x_port_update(uint8_t port, uint8_t cmd, uint8_t mask, uint8_t value)
         {
-            uint8_t val = 0;
-            RETURN_ON_FALSE(max310x_port_read(port, cmd, &val));
+            uint8_t val = max310x_port_read(port, cmd);
             val &= ~mask;
             val |= (mask & value);
             return max310x_port_write(port, cmd, val);

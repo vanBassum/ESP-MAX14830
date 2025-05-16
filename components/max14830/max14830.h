@@ -34,8 +34,8 @@ namespace esphome
             bool portInit(uint8_t port);
 
             bool regmap_write(uint8_t cmd, uint8_t value);
-            uint8_t regmap_read(uint8_t cmd, uint8_t *value);
-            bool max310x_port_read(uint8_t port, uint8_t cmd, uint8_t *value);
+            uint8_t regmap_read(uint8_t cmd);
+            uint8_t max310x_port_read(uint8_t port, uint8_t cmd);
             bool max310x_port_write(uint8_t port, uint8_t cmd, uint8_t value);
             bool max310x_port_update(uint8_t port, uint8_t cmd, uint8_t mask, uint8_t value);
             uint8_t max310x_update_best_err(uint64_t f, int64_t *besterr);
