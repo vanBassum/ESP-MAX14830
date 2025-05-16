@@ -22,20 +22,20 @@ MAX14830UART = max14830_ns.class_("MAX14830UART", cg.Component)
 CONF_MAX14830 = "max14830"
 CONF_PORT = "port"
 
-CONFIG_SCHEMA = cv.Schema({
-    cv.Required(CONF_ID): cv.declare_id(MAX14830),
-}).extend(cv.COMPONENT_SCHEMA).extend(spi.spi_device_schema())
-
-CODEOWNERS = []
+CODEOWNERS = ["@vanBassum"]
 DEPENDENCIES = ["spi"]
 
-async def to_code(config):
-    var = cg.new_Pvariable(config[CONF_ID])
-    await spi.register_spi_device(var, config)
-    await cg.register_component(var, config)
+# === MAIN CONFIG SCHEMA ===
+CONFIG_SCHEMA = cv.Schema({
+    cv.Required(CONF_ID): cv.declare_id(MAX14830),
+    cv.Optional("uart"): cv.ensure_list(cv.Schema({
+        cv.Required(CONF_ID): cv.declare_id(MAX14830UART),
+        cv.Required(CONF_PORT): cv.int_range(min=0, max=3),
+        cv.Optional(CONF_BAUD_RATE, default=9600): cv.positive_int,
+    }))
+}).extend(cv.COMPONENT_SCHEMA).extend(spi.spi_device_schema())
 
 # === GPIO PIN SUPPORT ===
-
 def validate_mode(value):
     if not (value[CONF_INPUT] or value[CONF_OUTPUT]):
         raise cv.Invalid("Mode must be either input or output")
@@ -63,26 +63,13 @@ async def max14830_pin_to_code(config):
     cg.add(var.set_flags(pins.gpio_flags_expr(config[CONF_MODE])))
     return var
 
-# === UART SUPPORT ===
-MAX14830_UART_SCHEMA = cv.Schema({
-    cv.Required(CONF_ID): cv.declare_id(MAX14830UART),
-    cv.Required(CONF_MAX14830): cv.use_id(MAX14830),
-    cv.Required(CONF_PORT): cv.int_range(min=0, max=3),
-    cv.Optional(CONF_BAUD_RATE, default=9600): cv.positive_int,
-})
-
-CONFIG_SCHEMA = cv.All(
-    CONFIG_SCHEMA.extend({
-        cv.Optional("max14830_uart"): cv.ensure_list(MAX14830_UART_SCHEMA),
-    })
-)
-
+# === TO_CODE ===
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await spi.register_spi_device(var, config)
     await cg.register_component(var, config)
 
-    for uart_cfg in config.get("max14830_uart", []):
+    for uart_cfg in config.get("uart", []):
         uart = cg.new_Pvariable(uart_cfg[CONF_ID])
         cg.add(uart.set_parent(var))
         cg.add(uart.set_port(uart_cfg[CONF_PORT]))

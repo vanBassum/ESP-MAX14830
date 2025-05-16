@@ -3,6 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 #include "esphome/components/spi/spi.h"
+#include "max14830_uart.h"
 
 // This should become config TODO
 #define MAX14830_USE_XTAL

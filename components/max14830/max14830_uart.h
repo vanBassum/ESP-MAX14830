@@ -1,5 +1,5 @@
 #pragma once
-#include "esphome/components/uart/uart.h"
+#include "esphome/components/uart/uart_component.h"
 
 namespace esphome
 {
